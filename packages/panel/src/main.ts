@@ -60,6 +60,7 @@ const deps: Deps = {
   scheduler: undefined as unknown as Scheduler,
 };
 deps.mods = new ModsService({ env, db, agent, feed: agent, ops, settings, config: deps.config, steam: new SteamWorkshop() });
+deps.flows = new BackupFlows({ agent, feed: agent, ops, control: deps.control, backups: deps.backups, settings, config: deps.config, pzDataDir: env.pzDataDir });
 deps.scheduler = new Scheduler({ settings, agent, feed: agent, ops, control: deps.control, flows: deps.flows, backups: deps.backups, mods: deps.mods, notifier, audit, backupPanelDb: () => backupPanelDb(db, deps.env.backupDir) });
 deps.control.beforeUpdateInstall = async () => {
   // Only when there is a world to protect.
@@ -76,7 +77,6 @@ agent.onEvent((e) => {
 });
 deps.scheduler.reload();
 deps.players.attach();
-deps.flows = new BackupFlows({ agent, feed: agent, ops, control: deps.control, backups: deps.backups, settings, config: deps.config, pzDataDir: env.pzDataDir });
 deps.control.onBeforeStart = () => deps.config.seedIniIfMissing();
 
 await bootstrapOwner(deps);

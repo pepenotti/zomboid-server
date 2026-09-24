@@ -178,7 +178,14 @@ export class Scheduler {
   async runBackup(): Promise<void> {
     if (this.d.ops.busy) return this.skip('backup', 'another operation is running');
     this.d.ops.start('backup', 'scheduler', async (ctx) => {
-      await this.d.flows.backupNow(ctx, 'scheduled');
+      try {
+        const b = await this.d.flows.backupNow(ctx, 'scheduled');
+        this.d.audit.log({ action: 'schedule.backup', detail: b.name });
+      } catch (e) {
+        // Still fails the op (and so the Discord message); this makes it visible in the activity log too.
+        this.d.audit.log({ action: 'schedule.backup', detail: (e as Error).message, ok: false });
+        throw e;
+      }
     });
   }
 

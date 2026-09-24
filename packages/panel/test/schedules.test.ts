@@ -129,6 +129,41 @@ describe('schedules', () => {
     p.deps.scheduler.stop();
   });
 
+  it('runs the periodic backup while stopped, cold, and audits it', async () => {
+    const { p } = await setup();
+    seedWorld(p);
+    await p.deps.scheduler.runBackup();
+    await p.deps.ops.idle();
+    expect(p.deps.backups.list().map((b) => [b.manifest.trigger, b.manifest.mode])).toEqual([['scheduled', 'cold']]);
+    expect(p.deps.audit.list({ action: 'schedule.backup' })[0]).toMatchObject({ ok: true });
+  });
+
+  it('saves the world first when the periodic backup runs on a live server', async () => {
+    const { p } = await setup();
+    seedWorld(p);
+    p.feed.status_ = fakeStatus({ state: 'running' });
+    p.agent.command = async (cmd) => {
+      p.agent.calls.push(`command:${cmd}`);
+      p.feed.emit({ type: 'log', stream: 'out', line: 'LOG  : General      f:0 st:1> Saving finish' });
+      return { via: 'rcon', output: 'World saved' };
+    };
+    await p.deps.scheduler.runBackup();
+    await p.deps.ops.idle();
+    expect(p.agent.calls).toContain('command:save');
+    expect(p.deps.backups.list()[0]!.manifest.mode).toBe('hot');
+  });
+
+  it('audits a periodic backup that fails', async () => {
+    const { p } = await setup();
+    seedWorld(p);
+    p.deps.backups.create = async () => {
+      throw new Error('disk full');
+    };
+    await p.deps.scheduler.runBackup();
+    await p.deps.ops.idle();
+    expect(p.deps.audit.list({ action: 'schedule.backup' })[0]).toMatchObject({ ok: false, detail: 'disk full' });
+  });
+
   it('skips the restart when the server is stopped', async () => {
     const { p } = await setup();
     await p.deps.scheduler.runRestart();

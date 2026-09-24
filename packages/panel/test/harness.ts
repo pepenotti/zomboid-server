@@ -157,10 +157,10 @@ export async function makePanel(envOver: Partial<PanelEnv> = {}, opts: { steam?:
     scheduler: undefined as unknown as Scheduler,
   };
   deps.mods = new ModsService({ env, db, agent, feed, ops, settings, config: deps.config, steam: opts.steam ?? new SteamWorkshop(() => Promise.reject(new Error('no network in tests'))) });
+  deps.flows = new BackupFlows({ agent, feed, ops, control: deps.control, backups: deps.backups, settings, config: deps.config, pzDataDir: env.pzDataDir });
   deps.scheduler = new Scheduler({ settings, agent, feed, ops, control: deps.control, flows: deps.flows, backups: deps.backups, mods: deps.mods, notifier: deps.notifier, audit, backupPanelDb: () => backupPanelDb(db, deps.env.backupDir) });
   wireNotifications({ feed, players: deps.players, bus, notifier: deps.notifier });
   deps.players.attach();
-  deps.flows = new BackupFlows({ agent, feed, ops, control: deps.control, backups: deps.backups, settings, config: deps.config, pzDataDir: env.pzDataDir });
   deps.control.onBeforeStart = () => deps.config.seedIniIfMissing();
   await bootstrapOwner(deps);
   const app = await buildApp(deps);
